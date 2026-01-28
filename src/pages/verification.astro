@@ -14,21 +14,11 @@ const hasParams = Boolean(userId && secret);
     class="min-h-screen bg-[#fcfcfc] flex items-center justify-center p-6 font-sans"
   >
     <div
-      class="w-full max-w-[440px] bg-white rounded-4xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 sm:p-10"
+      class="w-full max-w-[440px] bg-white rounded-4xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 sm:p-10 text-center"
     >
-      <h1
-        class="text-2xl sm:text-3xl font-bold text-[#1a1a1a] mb-3 text-center tracking-tight"
-      >
-        Verify your account
-      </h1>
-
-      <p class="text-[#666] mb-8 text-center text-[15px] leading-relaxed">
-        Click the button below to verify your SpeechWave account.
-      </p>
-
       {!hasParams ? (
         <div
-          class="bg-red-50 border border-red-100 text-red-600 rounded-xl p-4 text-sm flex items-center gap-3 mb-6"
+          class="bg-red-50 border border-red-100 text-red-600 rounded-xl p-4 text-sm flex items-center gap-3 mb-6 text-left"
         >
           <svg
             class="shrink-0"
@@ -48,18 +38,52 @@ const hasParams = Boolean(userId && secret);
           <span class="font-medium">Invalid or expired verification link.</span>
         </div>
       ) : (
-        <>
-          <div class="space-y-6">
-            <button
-              id="verifyBtn"
-              class="w-full bg-[#111] text-white rounded-xl py-3.5 text-[15px] font-semibold hover:bg-black transition-all active:scale-[0.98]"
-            >
-              Verify Account
-            </button>
+        <div id="statusContainer" class="flex flex-col items-center">
+          <!-- Loading State (Default - visible) -->
+          <div id="loadingState">
+            <div class="mb-6 relative flex items-center justify-center">
+               <div class="h-16 w-16 rounded-full border-4 border-gray-100"></div>
+               <div class="absolute h-16 w-16 rounded-full border-4 border-black border-t-transparent animate-spin"></div>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-[#1a1a1a] mb-3 tracking-tight">
+              Verifying...
+            </h1>
+            <p class="text-[#666] text-[15px] leading-relaxed">
+              Please wait while we verify your account.
+            </p>
           </div>
 
-          <p id="msg" class="mt-6 text-center text-sm font-medium"></p>
-        </>
+          <!-- Success State (Initially hidden with inline style) -->
+          <div id="successState" style="display: none;">
+            <div class="mb-6 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto text-green-600">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-[#1a1a1a] mb-3 tracking-tight">
+              Verified!
+            </h1>
+            <p class="text-[#666] text-[15px] leading-relaxed">
+              Your account has been successfully verified. Redirecting you...
+            </p>
+          </div>
+
+          <!-- Error State (Initially hidden with inline style) -->
+          <div id="errorState" style="display: none;">
+             <div class="mb-6 h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mx-auto text-red-600">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-[#1a1a1a] mb-3 tracking-tight">
+              Verification Failed
+            </h1>
+            <p id="errorMsg" class="text-red-500 text-[15px] leading-relaxed font-medium">
+              Something went wrong.
+            </p>
+          </div>
+        </div>
       )}
     </div>
 
@@ -81,43 +105,33 @@ const hasParams = Boolean(userId && secret);
           const userId = params.get("userId");
           const secret = params.get("secret");
 
-          const verifyBtn = document.getElementById("verifyBtn");
-          const msg = document.getElementById("msg");
+          const loadingState = document.getElementById("loadingState");
+          const successState = document.getElementById("successState");
+          const errorState = document.getElementById("errorState");
+          const errorMsg = document.getElementById("errorMsg");
 
-          verifyBtn?.addEventListener("click", async () => {
-            verifyBtn.disabled = true;
-            verifyBtn.innerHTML = `
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Verifying...
-            `;
-            
-            msg.textContent = "";
-
+          async function verify() {
             try {
               await account.updateVerification(userId, secret);
 
-              msg.textContent = "Verification successful! Redirecting...";
-              msg.className = "mt-6 text-center text-[15px] text-green-600 font-medium";
-              
-              verifyBtn.textContent = "Verified";
-              verifyBtn.classList.remove("bg-[#111]", "hover:bg-black");
-              verifyBtn.classList.add("bg-green-600", "hover:bg-green-700");
+              // Show success
+              loadingState.style.display = "none";
+              successState.style.display = "block";
 
               setTimeout(() => {
                 window.location.href = "/";
               }, 2000);
             } catch (err) {
               console.error(err);
-              msg.textContent = err.message || "Failed to verify account.";
-              msg.className = "mt-6 text-center text-[15px] text-red-500 font-medium";
-              
-              verifyBtn.disabled = false;
-              verifyBtn.textContent = "Verify Account";
+              // Show error
+              loadingState.style.display = "none";
+              errorState.style.display = "block";
+              errorMsg.textContent = err.message || "Failed to verify account.";
             }
-          });
+          }
+
+          // Start verification on load
+          verify();
         </script>
       )
     }
